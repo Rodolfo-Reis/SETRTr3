@@ -30,12 +30,21 @@ typedef enum{
     MENU, PAY_CHECK, MOVIES, UPDATE_CREDIT
 } States;
 
-/* definir variavel evento*/
+/* definir variavel evento */
 static volatile Event eventos = NONE;
-/* definir variavel estado*/
+/* definir variavel estado */
 static volatile States estado = MENU;
-/* definir variavel credito*/
+/* definir variavel credito */
 static volatile int Credito = 0;
+
+/* Listas de filmes, horas e preço */
+static volatile int num_movie = 5;
+static volatile char Movie[]= {'A', 'A', 'A', 'B', 'B'};
+static volatile int Hora[] = {19, 21, 23, 19, 21}; 
+static volatile int Preco[]= {9, 11, 9, 10, 12};
+static volatile int movie_idx = -1;
+
+
 
 //---------------------------------------------------------
 /* Get node ID for GPIO0, which has leds and buttons */ 
@@ -53,11 +62,9 @@ static struct gpio_callback button_cb_data;
 void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
 	int i=0;
-		printk("Credito Atual:aeqw \n\r");
 	/* Identify the button(s) that was(ere) hit*/
 	for(i=0; i<sizeof(buttons_pins); i++){		
 		if(BIT(buttons_pins[i]) & pins) {
-			printk("Credito Atual: and1 \n\r");
 			/* add 1 euro*/
 			if(i==0){
 				eventos = ADD1;
@@ -73,6 +80,18 @@ void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t
 			/* add 10 euro*/
 			else if(i==3){
 				eventos = ADD10;
+			}
+			/* Up */
+			else if(i==4){
+				eventos = UP;
+			}
+			/* Down */
+			else if(i==5){
+				eventos = DOWN;
+			}
+			/* Pay check*/
+			else if(i==6){
+				eventos = SEL;
 			}
 			/* Return */
 			else if(i==7){
@@ -131,37 +150,77 @@ void main(void)
 					estado = UPDATE_CREDIT;
 				}
 				else if(eventos == RET){
-					printk(" %d EUROS return\n\r", Credito);
+					printk("%d EUR return\n",Credito);
 					Credito = 0;
 					eventos = NONE;
+				}
+				else if(eventos == UP || eventos == DOWN){
+					estado = MOVIES;
+				}
+				else if(eventos == SEL){
+					estado = PAY_CHECK;
 				}
 				break;
 
 			case UPDATE_CREDIT:
 				if (eventos == ADD1){
 					Credito += 1;
-					printk("Credito Atual: %d \n\r",Credito);
+					printk("Credito Atual: %d EUR\n\r",Credito);
 				}
 				if (eventos == ADD2){
 					Credito += 2;
-					printk("Credito Atual: %d \n\r",Credito);
+					printk("Credito Atual: %d EUR\n\r",Credito);
 				}
 				if (eventos == ADD5){
 					Credito += 5;
-					printk("Credito Atual: %d \n\r",Credito);
+					printk("Credito Atual: %d EUR\n\r",Credito);
 				}
 				if (eventos == ADD10){
 					Credito += 10;
-					printk("Credito Atual: %d \n\r",Credito);
+					printk("Credito Atual: %d EUR\n\r",Credito);
 				}
 				estado = MENU;
 				eventos = NONE;
 				break;
 
 			case MOVIES:
+				if(eventos == UP){
+					movie_idx = (movie_idx+1)%(num_movie);
+					printk("Movie %c, %dH00 session \n", Movie[movie_idx],Hora[movie_idx]);
+					printk("Custo: %d EUR\n", Preco[movie_idx]);
+					printk("Saldo: %d EUR\n",Credito);
+				}
+				else if(eventos == DOWN && movie_idx == -1){
+					movie_idx = num_movie -1;
+					printk("Movie %c, %dH00 session \n", Movie[movie_idx],Hora[movie_idx]);
+					printk("Custo: %d EUR\n", Preco[movie_idx]);
+					printk("Saldo: %d EUR\n",Credito);
+				}
+				else{
+					movie_idx = (movie_idx-1)%(num_movie);
+					printk("Movie %c, %dH00 session \n", Movie[movie_idx],Hora[movie_idx]);
+					printk("Custo: %d EUR\n", Preco[movie_idx]);
+					printk("Saldo: %d EUR\n",Credito);
+				}
+				estado = MENU;
+				eventos = NONE;
 				break;
 			
 			case PAY_CHECK:
+				if(movie_idx < 0 || movie_idx >= num_movie){
+					printk("Não tem nenhum filme selecionado! \n");
+				}
+				else if(Credito >= Preco[movie_idx]){
+					printk("Ticket for Movie %c, session %dH00 issued\n",Movie[movie_idx],Hora[movie_idx]);
+					/* Atualizar o credito*/
+					Credito = Credito - Preco[movie_idx];
+					printk("Remaining credit: %d EUR\n",Credito);
+				}
+				else{
+					printk("Not enough credit. Ticket not issued! \n");
+				}
+				estado = MENU;
+				eventos = NONE;
 				break;
 
         }
