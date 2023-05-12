@@ -27,8 +27,11 @@ typedef enum {
 
 /* Definir estados */
 typedef enum{
-    MENU, PAY_CHECK, MOVIES, UPDATE_CREDIT
+    MENU, MOVIES, UPDATE_CREDIT
 } States;
+
+/* flag para manter o movie_idx caso seja 1 mantem movie idx, caso 0 pode alterar o movie idx */
+static volatile int same_movie = 1;
 
 /* definir variavel evento */
 static volatile Event eventos = NONE;
@@ -40,9 +43,9 @@ static volatile int Credito = 0;
 /* Listas de filmes, horas e preço */
 static volatile int num_movie = 5;
 static volatile char Movie[]= {'A', 'A', 'A', 'B', 'B'};
-static volatile int Hora[] = {19, 21, 23, 19, 21}; 
+static volatile char Hora[] = {19, 21, 23, 19, 21}; 
 static volatile int Preco[]= {9, 11, 9, 10, 12};
-static volatile int movie_idx = -1;
+static volatile int movie_idx = 0;
 
 
 
@@ -142,91 +145,157 @@ void main(void)
 
     while(1){
 
-			//printk("Credito Atual: adawe\n\r");
         switch(estado){
             case MENU:
-				//printk("Credito Atual: papap \n\r");
+				//printk("MENU \n\r");
 				if (eventos == ADD1 || eventos == ADD2 || eventos == ADD5 || eventos == ADD10){
 					estado = UPDATE_CREDIT;
 				}
 				else if(eventos == RET){
+					printk("return menu\n");
 					printk("%d EUR return\n",Credito);
 					Credito = 0;
 					eventos = NONE;
 				}
 				else if(eventos == UP || eventos == DOWN){
+					printk("up down menu\n");
 					estado = MOVIES;
+					same_movie = 1;
 				}
-				else if(eventos == SEL){
-					estado = PAY_CHECK;
-				}
+				// else if(eventos == SEL){}
 				break;
 
 			case UPDATE_CREDIT:
+				
+				// Eventos que fazem a mudança de estado
+				// retornar o credito
+				if(eventos == RET){
+					printk("return update credit\n");
+					estado = MENU;
+					break;
+				}
+				// Fazer pesquisa na lista de filmes
+				if(eventos == UP || eventos == DOWN){
+					printk("up DOWN update credit\n");
+					same_movie = 1; // apresenta o filme selecionado ou o primeiro da lista
+					estado = MOVIES;
+					eventos = NONE;
+					break;
+				}
+				/*verificar se temos algum filme selecionado */
+				if(eventos == SEL && same_movie == 1){
+					printk("Ainda não selecionou filme\n");
+					eventos = NONE;
+				}
+				/* se tivermos um filme selecionado e o credito menor que o preço do mesmo ficamos neste estado e imprimimos uma mensagem */
+				/* para saber que o um filme essta selecionado verificamos a variavel same_movie se esta tiver o valor 0 quer dizer que já 
+				passamos pelo menos uma vez pelo estado MOVIE */
+				else if(eventos == SEL && same_movie == 0 && Credito < Preco[movie_idx]){
+					printk("Not enough Credit. Ticket not issued!\n");
+					eventos = NONE;
+				}
+				/* se tiver filme selecionado e credito suficiente coltamos ao estado menu e necessitamos de escolher novamente um filme*/
+				else if(eventos == SEL && same_movie == 0 && Credito >= Preco[movie_idx]){
+					printk("Ticket for movie %c, session %c issued!\n",Movie[movie_idx],Hora[movie_idx]);
+					Credito = Credito - Preco[movie_idx];
+					printk("Remaining credit %d \n",Credito);
+					same_movie = 1;
+					estado = MENU;
+					eventos = NONE;
+					break;
+				}
+
+				// açoes dentro deste estado 
+				// atualizaçao do credito consoante a quantia inserida
+				
 				if (eventos == ADD1){
 					Credito += 1;
 					printk("Credito Atual: %d EUR\n\r",Credito);
+					eventos = NONE;
 				}
-				if (eventos == ADD2){
+				else if (eventos == ADD2){
 					Credito += 2;
 					printk("Credito Atual: %d EUR\n\r",Credito);
+					eventos = NONE;
 				}
-				if (eventos == ADD5){
+				else if (eventos == ADD5){
 					Credito += 5;
 					printk("Credito Atual: %d EUR\n\r",Credito);
+					eventos = NONE;
 				}
-				if (eventos == ADD10){
+				else if (eventos == ADD10){
 					Credito += 10;
 					printk("Credito Atual: %d EUR\n\r",Credito);
+					eventos = NONE;
 				}
-				estado = MENU;
-				eventos = NONE;
 				break;
 
 			case MOVIES:
-				if(eventos == UP){
-					movie_idx = (movie_idx+1)%(num_movie);
-					printk("Movie %c, %dH00 session \n", Movie[movie_idx],Hora[movie_idx]);
-					printk("Custo: %d EUR\n", Preco[movie_idx]);
-					printk("Saldo: %d EUR\n",Credito);
+				/* Eventos que fazem mudar deee estado */
+				/* inserir coins passa ao estado UPDATE_CREDIT */
+				if (eventos == ADD1 || eventos == ADD2 || eventos == ADD5 || eventos == ADD10){
+					printk("Coins MOVIES\n");
+					estado = UPDATE_CREDIT;
+					break;
 				}
-				else if(eventos == DOWN && movie_idx == -1){
-					movie_idx = num_movie -1;
-					printk("Movie %c, %dH00 session \n", Movie[movie_idx],Hora[movie_idx]);
-					printk("Custo: %d EUR\n", Preco[movie_idx]);
-					printk("Saldo: %d EUR\n",Credito);
+
+				/* Returno do credito passa ao estado MENU */
+				if (eventos == RET){
+					printk("return MOVIES\n");
+					estado = MENU;
+					break;
 				}
-				else{
-					movie_idx = (movie_idx-1)%(num_movie);
-					printk("Movie %c, %dH00 session \n", Movie[movie_idx],Hora[movie_idx]);
-					printk("Custo: %d EUR\n", Preco[movie_idx]);
-					printk("Saldo: %d EUR\n",Credito);
+
+				/* Selecionar a compra de um filme */
+				if(eventos == SEL  && Credito < Preco[movie_idx]){
+					printk("Not enough Credit. Ticket not issued!\n");
+					eventos = NONE;
 				}
-				estado = MENU;
-				eventos = NONE;
-				break;
-			
-			case PAY_CHECK:
-				if(movie_idx < 0 || movie_idx >= num_movie){
-					printk("Não tem nenhum filme selecionado! \n");
-				}
-				else if(Credito >= Preco[movie_idx]){
-					printk("Ticket for Movie %c, session %dH00 issued\n",Movie[movie_idx],Hora[movie_idx]);
-					/* Atualizar o credito*/
+				/* se tiver filme selecionado e credito suficiente coltamos ao estado menu e necessitamos de escolher novamente um filme*/
+				else if(eventos == SEL  && Credito >= Preco[movie_idx]){
+					printk("Ticket for movie %c, session %c issued!\n",Movie[movie_idx],Hora[movie_idx]);
 					Credito = Credito - Preco[movie_idx];
-					printk("Remaining credit: %d EUR\n",Credito);
+					printk("Remaining credit %d \n",Credito);
+					
+					estado = MENU;
+					eventos = NONE;
+					same_movie = 1;
+					break;
 				}
+
+				/* Açoes neste estado*/
+				/* Manter o movie_idx */
+				if(same_movie == 1){
+					printk("same movie movies\n");
+					printk("Movie %c, %dH00 session \n", Movie[movie_idx],Hora[movie_idx]);
+					printk("Custo: %d EUR\n", Preco[movie_idx]);
+					printk("Saldo: %d EUR\n",Credito);
+					eventos = NONE;
+					same_movie = 0;
+				}
+				/* alterar movie idx*/
 				else{
-					printk("Not enough credit. Ticket not issued! \n");
+					if(eventos == UP){
+						printk("UP movies\n");
+						movie_idx = (movie_idx+1)%(num_movie);
+						printk("Movie %c, %dH00 session \n", Movie[movie_idx],Hora[movie_idx]);
+						printk("Custo: %d EUR\n", Preco[movie_idx]);
+						printk("Saldo: %d EUR\n",Credito);
+						eventos = NONE;
+					}
+					else if(eventos == DOWN){
+						printk("DOWN movies\n");
+						movie_idx = (movie_idx-1);
+						if(movie_idx < 0){
+							movie_idx = num_movie-1;
+						}
+						printk("Movie %c, %dH00 session \n", Movie[movie_idx],Hora[movie_idx]);
+						printk("Custo: %d EUR\n", Preco[movie_idx]);
+						printk("Saldo: %d EUR\n",Credito);	
+						eventos = NONE;
+					}
 				}
-				estado = MENU;
-				eventos = NONE;
 				break;
-
         }
-
     }
-
-
-
 }
