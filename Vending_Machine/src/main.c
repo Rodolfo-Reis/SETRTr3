@@ -152,13 +152,11 @@ void main(void)
 					estado = UPDATE_CREDIT;
 				}
 				else if(eventos == RET){
-					printk("return menu\n");
 					printk("%d EUR return\n",Credito);
 					Credito = 0;
 					eventos = NONE;
 				}
 				else if(eventos == UP || eventos == DOWN){
-					printk("up down menu\n");
 					estado = MOVIES;
 					same_movie = 1;
 				}
@@ -170,13 +168,11 @@ void main(void)
 				// Eventos que fazem a mudança de estado
 				// retornar o credito
 				if(eventos == RET){
-					printk("return update credit\n");
 					estado = MENU;
 					break;
 				}
 				// Fazer pesquisa na lista de filmes
 				if(eventos == UP || eventos == DOWN){
-					printk("up DOWN update credit\n");
 					same_movie = 1; // apresenta o filme selecionado ou o primeiro da lista
 					estado = MOVIES;
 					eventos = NONE;
@@ -234,14 +230,12 @@ void main(void)
 				/* Eventos que fazem mudar deee estado */
 				/* inserir coins passa ao estado UPDATE_CREDIT */
 				if (eventos == ADD1 || eventos == ADD2 || eventos == ADD5 || eventos == ADD10){
-					printk("Coins MOVIES\n");
 					estado = UPDATE_CREDIT;
 					break;
 				}
 
 				/* Returno do credito passa ao estado MENU */
 				if (eventos == RET){
-					printk("return MOVIES\n");
 					estado = MENU;
 					break;
 				}
@@ -266,7 +260,6 @@ void main(void)
 				/* Açoes neste estado*/
 				/* Manter o movie_idx */
 				if(same_movie == 1){
-					printk("same movie movies\n");
 					printk("Movie %c, %dH00 session \n", Movie[movie_idx],Hora[movie_idx]);
 					printk("Custo: %d EUR\n", Preco[movie_idx]);
 					printk("Saldo: %d EUR\n",Credito);
@@ -276,7 +269,6 @@ void main(void)
 				/* alterar movie idx*/
 				else{
 					if(eventos == UP){
-						printk("UP movies\n");
 						movie_idx = (movie_idx+1)%(num_movie);
 						printk("Movie %c, %dH00 session \n", Movie[movie_idx],Hora[movie_idx]);
 						printk("Custo: %d EUR\n", Preco[movie_idx]);
@@ -284,7 +276,6 @@ void main(void)
 						eventos = NONE;
 					}
 					else if(eventos == DOWN){
-						printk("DOWN movies\n");
 						movie_idx = (movie_idx-1);
 						if(movie_idx < 0){
 							movie_idx = num_movie-1;
