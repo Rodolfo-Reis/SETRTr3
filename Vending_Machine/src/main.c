@@ -1,8 +1,20 @@
-/*
+/**
  * Copyright (c) 2012-2014 Wind River Systems, Inc.
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+
+/** \file Trabalho3.ext
+* \brief Implementaçao de Máquinas de estado em Sistemas Embutidos (usando Zephyr)
+* 
+*
+* After one blank line follows the detailed description
+* which can span through several lines
+*
+* \author Rodolfo Oliveira, NºMec: 88919
+* \date 16 de Maio de 2023
+* \bug Nenhum bug conhecido
+*/
 
 #include <zephyr.h>
 #include <zephyr/device.h> /* device_is_ready and device struct */
@@ -13,38 +25,60 @@
 /* Use a "big" sleep time to reduce CPU load (button detection int activated, not polled) */
 #define SLEEP_TIME_MS   60*1000 
 
-/* set de pins used */
-/* buttons 1-4 on board */
-/* buttons 5-8 connected labeled A0...A3 (gpio pin 3,4,28,29) */
+/** @brief Definiçao de array dos pinos usados
+	* set de pins used 
+	* buttons 1-4 on board (11,12,24,25)
+	* buttons 5-8 connected labeled A0...A3 (gpio pin 3,4,28,29) 
+	* array usado para identificaçao de qual butao foi clicado para identificar um evento */
 const uint8_t buttons_pins[] = { 11,12,24,25,3,4,28,29};
 
 //----------------------------------------------------------------
-/* Definicao de variaveis */
-/* Definir eventos */
+/** @brief Definicao de eventos
+ 	*  Enumeraçao de possiveis eventos criados pelos sistema */
 typedef enum {
     NONE, ADD1, ADD2, ADD5, ADD10, UP, DOWN, SEL, RET
 } Event;
 
-/* Definir estados */
+/** @brief Definicao de Estados
+ 	*  Enumeraçao de estados do sistema */
 typedef enum{
     MENU, MOVIES, UPDATE_CREDIT
 } States;
 
-/* flag para manter o movie_idx caso seja 1 mantem movie idx, caso 0 pode alterar o movie idx */
+/** @brief Variavel para identificar qual filme apresentar no estado Movie
+ *  flag para manter o movie_idx caso seja 1 mantem movie idx, caso 0 pode alterar o movie idx */
 static volatile int same_movie = 1;
 
-/* definir variavel evento */
+/** @brief Variavel eventos para tomar o valor do evento ocorrido
+ * definir variavel evento que tera um valor consoante o evento ocorrido*/
 static volatile Event eventos = NONE;
-/* definir variavel estado */
+/** @brief Variavel estado para tomar o valor do estado seguinte 
+ * definir variavel estado que irá tomar um valor consoante o evento ocorrido e estado atual */
 static volatile States estado = MENU;
-/* definir variavel credito */
+/** @brief Variavel Credito  
+ * definir variavel credito que terá a quantia de credito introduzida pelo utilizador */
 static volatile int Credito = 0;
 
 /* Listas de filmes, horas e preço */
+/** @brief Quantidade de filmes */
 static volatile int num_movie = 5;
+
+/** @brief Lista de nomes dos Filmes 
+ * array com os nomes dos filmes que podem ser comprados
+*/
 static volatile char Movie[]= {'A', 'A', 'A', 'B', 'B'};
+/** @brief Lista das Horas 
+ * array com as horas das sessoes dos filmes 
+*/
 static volatile char Hora[] = {19, 21, 23, 19, 21}; 
+/** @brief Lista de Preços
+ * array com os preços relacionado a cada filme e sessao
+*/
 static volatile int Preco[]= {9, 11, 9, 10, 12};
+
+/** @brief variavel de identificaçao da posiçao da lista de filmes
+ * Aponta para o filme selecionado e a ser apresentado no Estado movie 
+*/
 static volatile int movie_idx = 0;
 
 
@@ -62,10 +96,17 @@ static struct gpio_callback button_cb_data;
 
 /* Define a callback function. It is like an ISR (and runs in the cotext of an ISR) */
 /* that is called when the button is pressed */
+
+/** @brief Funçao de callback com funcionamento identico a uma interrupçao
+ * 
+ * Funçao que é chamada quando um botao é primido e irá identificar qual botao foi primido
+ * 
+ * 
+*/
 void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
 	int i=0;
-	/* Identify the button(s) that was(ere) hit*/
+	/** Identify the button(s) that was(ere) hit*/
 	for(i=0; i<sizeof(buttons_pins); i++){		
 		if(BIT(buttons_pins[i]) & pins) {
 			/* add 1 euro*/
@@ -113,7 +154,11 @@ void main(void)
     int i,ret;
     uint32_t pinmask = 0; /* Mask for setting the pins that shall generate interrupts */
 
-	/* Configure the GPIO pins - buttons 1-4 + IOPINS 2,4,28 and 29 for input*/
+	/*Configure the GPIO pins - buttons 1-4 + IOPINS 2,4,28 and 29 for input*/
+	/** @brief Configuraçao dos pinos de entrada
+	 * 
+	 * Os pinos usados para utilizar os butoes têm de ser configurados como entradas
+	*/
     for(i=0; i<sizeof(buttons_pins); i++) {
 		ret = gpio_pin_configure(gpio0_dev, buttons_pins[i], GPIO_INPUT | GPIO_PULL_UP);
 		if (ret < 0) {
@@ -125,6 +170,10 @@ void main(void)
 	}
 
     /* Configure the interrupt on the button's pin */
+	/** @brief ativaçao de interrupçoes no pinos usados pelos butoes
+	 * 
+	 * Ativar o modo de interrupçao para os pinos relacionados com os butoes
+	*/
 	for(i=0; i<sizeof(buttons_pins); i++) {
 		ret = gpio_pin_interrupt_configure(gpio0_dev, buttons_pins[i], GPIO_INT_EDGE_TO_ACTIVE );
 		if (ret < 0) {
@@ -147,7 +196,6 @@ void main(void)
 
         switch(estado){
             case MENU:
-				//printk("MENU \n\r");
 				if (eventos == ADD1 || eventos == ADD2 || eventos == ADD5 || eventos == ADD10){
 					estado = UPDATE_CREDIT;
 				}
@@ -168,6 +216,9 @@ void main(void)
 				// Eventos que fazem a mudança de estado
 				// retornar o credito
 				if(eventos == RET){
+					printk("%d EUR return\n",Credito);
+					Credito = 0;
+					eventos = NONE;
 					estado = MENU;
 					break;
 				}
@@ -236,6 +287,9 @@ void main(void)
 
 				/* Returno do credito passa ao estado MENU */
 				if (eventos == RET){
+					printk("%d EUR return\n",Credito);
+					Credito = 0;
+					eventos = NONE;
 					estado = MENU;
 					break;
 				}
